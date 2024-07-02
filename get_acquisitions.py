@@ -1,4 +1,5 @@
 #!/bin/python
+
 import argparse
 import json
 import pathlib
@@ -7,7 +8,7 @@ from typing import Final
 
 import requests
 from bs4 import BeautifulSoup
-from selenium import webdriver
+from playwright.sync_api import sync_playwright
 
 
 def parse_arguments():
@@ -57,21 +58,21 @@ def get_security_trails_acquisitions(domain, email, password):
 
 
 def get_crunch_base_acquisitions(company):
-    driver = webdriver.Chrome()
-    url = f"https://www.crunchbase.com/organization/{company}/company_financials"
-    driver.get(url)
-    html = driver.page_source
-    soup = BeautifulSoup(html, 'html.parser')
-    pattern = "acquired by"
-    acquisitions = []
-    for string in soup.strings:
-        if re.search(pattern, string):
-            cleaned_string = string.strip()
-            if not re.search(r'Auto-generated', cleaned_string):
-                acquisitions.append(cleaned_string)
-
-    driver.close()
-    driver.quit()
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        url = f"https://www.crunchbase.com/organization/{company}/company_financials"
+        page.goto(url)
+        html = page.content()
+        soup = BeautifulSoup(html, 'html.parser')
+        pattern = "acquired by"
+        acquisitions = []
+        for string in soup.strings:
+            if re.search(pattern, string):
+                cleaned_string = string.strip()
+                if not re.search(r'Auto-generated', cleaned_string):
+                    acquisitions.append(cleaned_string)
+        browser.close()
 
     return acquisitions
 
